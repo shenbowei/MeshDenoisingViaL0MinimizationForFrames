@@ -1,1 +1,1 @@
-"# MeshDenoisingViaL0MinimizationForFrames" 
+# MeshDenoisingViaL0MinimizationForFrames
