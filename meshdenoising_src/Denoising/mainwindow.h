@@ -44,13 +44,8 @@ private slots:
     void ApplyAlgorithms(QString algorithm_name);
 
     void ShowNoiseWidget();
-    //void ShowBilateralMeshDenoisingWidget();
-    //void ShowNonIterativeFeaturePreservingMeshFilteringWidget();
-    //void ShowFastAndEffectiveFeaturePreservingMeshDenoisingWidget();
-    //void ShowBilateralNormalFilteringForMeshDenoisingWidget();
     void ShowMeshDenoisingViaL0MinimizationWidget();
     void ShowMeshDenoisingViaL0MinimizationForFramesWidget();
-    //void ShowGuidedMeshNormalFilteringWidget();
 
     void setActionAndWidget(bool value1, bool value2);
     void needToUpdateGL(bool value);
@@ -70,13 +65,8 @@ private:
     QAction *action_exit_;
 
     QAction *action_noise_;
-    //QAction *action_bilateral_mesh_denoising_;
-    //QAction *action_non_iterative_feature_preserving_mesh_filtering_;
-    //QAction *action_fast_and_effective_feature_preserving_mesh_denoising_;
-    //QAction *action_bilateral_normal_filtering_for_mesh_denoising_;
     QAction *action_mesh_denoising_via_l0_minimization_;
     QAction *action_mesh_denoising_via_l0_minimization_for_frames_;
-    //QAction *action_guided_mesh_normal_filtering_;
 
     QAction *action_about_;
 
@@ -84,6 +74,7 @@ private:
     QAction *action_render_edges_;
     QAction *action_render_faces_;
     QAction *action_set_background_color_;
+    QAction *action_set_model_color_;
 
     QAction *action_to_noisy_mesh_;
     QAction *action_to_original_mesh_;

@@ -29,12 +29,17 @@ public:
         draw_edges_status_ = _val;
     }
 
+    void setDrawModelColor(bool _val){
+        draw_model_color_ = _val;
+    }
+
 protected:
     TriMesh mesh_show_;
 
     bool draw_points_status_;
     bool draw_edges_status_;
     bool draw_faces_status_;
+    bool draw_model_color_;
 
     // compute the bounding box of a mesh
     bool meshBoundingBox(TriMesh::Point &min_coord, TriMesh::Point &max_coord);

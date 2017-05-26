@@ -106,6 +106,12 @@ void MainWindow::CreateActions()
     action_set_background_color_->setStatusTip("Change Background Color.");
     connect(action_set_background_color_, SIGNAL(triggered()), opengl_viewer_, SLOT(setBackgroundColor()));
 
+    action_set_model_color_ = new QAction(QIcon(":/Icons/model_color.ico"), tr("Change Model Color"), this);
+    action_set_model_color_->setStatusTip("Change Model Color.");
+    action_set_model_color_->setCheckable(true);
+    //action_set_model_color_->setChecked(true);
+    connect(action_set_model_color_, SIGNAL(toggled(bool)), opengl_viewer_, SLOT(setDrawModelColor(bool)));
+
     action_to_original_mesh_ = new QAction(this);
     action_to_original_mesh_->setText("Original Mesh");
     action_to_original_mesh_->setStatusTip("Show Original Mesh.");
@@ -173,6 +179,7 @@ void MainWindow::CreateToolBars()
     toolbar_opengl_info_->addAction(action_render_faces_);
     toolbar_opengl_info_->addSeparator();
     toolbar_opengl_info_->addAction(action_set_background_color_);
+    toolbar_opengl_info_->addAction(action_set_model_color_);
 
     toolbar_mesh_status_ = addToolBar(tr("Status"));
     toolbar_mesh_status_->addAction(action_to_original_mesh_);

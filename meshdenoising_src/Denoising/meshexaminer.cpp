@@ -4,7 +4,7 @@
 #include <QString>
 
 MeshExaminer::MeshExaminer()
-    :draw_points_status_(false), draw_edges_status_(false), draw_faces_status_(true)
+    :draw_points_status_(false), draw_edges_status_(false), draw_faces_status_(true), draw_model_color_(false)
 {
 
 }
@@ -48,9 +48,10 @@ void MeshExaminer::draw()
             TriMesh::Normal normal = mesh_show_.normal(*v_it);
             TriMesh::Point point = mesh_show_.point(*v_it);
             TriMesh::Color color = mesh_show_.color(*v_it);
-            glColor3f(color[0]/255.0,color[1]/255.0,color[2]/255.0);
-            //glColor3f(0.0f,0.0f,1.0f);
-            //qDebug()<<color[0]<<"-"<<color[1]<<"-"<<color[2];
+            if (draw_model_color_)
+                glColor3f(0.0f,0.0f,1.0f);
+            else
+                glColor3f(color[0]/255.0,color[1]/255.0,color[2]/255.0);
             glNormal3f(normal[0], normal[1], normal[2]);
             glVertex3f(point[0], point[1], point[2]);
         }
@@ -70,9 +71,11 @@ void MeshExaminer::draw()
             {
                 TriMesh::VertexHandle toV = mesh_show_.to_vertex_handle(*fh_it);
                 TriMesh::Point point = mesh_show_.point(toV);
-                //TriMesh::Color color = mesh_show_.color(toV);
-                //glColor3f(color[0]/255.0,color[1]/255.0,color[2]/255.0);
-                glColor3f(0.7f,0.7f,0.0f);
+                TriMesh::Color color = mesh_show_.color(toV);
+                if (draw_model_color_)
+                    glColor3f(0.7f,0.7f,0.0f);
+                else
+                    glColor3f(color[0]/255.0,color[1]/255.0,color[2]/255.0);
                 glNormal3f(normal[0], normal[1], normal[2]);
                 glVertex3f(point[0], point[1], point[2]);
             }
@@ -92,9 +95,11 @@ void MeshExaminer::draw()
                 TriMesh::VertexHandle toV = mesh_show_.to_vertex_handle(*fh_it);
                 TriMesh::Normal normal = mesh_show_.normal(toV);
                 TriMesh::Point point = mesh_show_.point(toV);
-                //TriMesh::Color color = mesh_show_.color(toV);
-                //glColor3f(color[0]/255.0,color[1]/255.0,color[2]/255.0);
-                glColor3f(0.3f, 0.3f, 0.3f);
+                TriMesh::Color color = mesh_show_.color(toV);
+                if (draw_model_color_)
+                    glColor3f(0.3f, 0.3f, 0.3f);
+                else
+                    glColor3f(color[0]/255.0,color[1]/255.0,color[2]/255.0);
                 glNormal3f(normal[0], normal[1], normal[2]);
                 glVertex3f(point[0], point[1], point[2]);
             }

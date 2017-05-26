@@ -8,5 +8,6 @@
         <file>Icons/background.ico</file>
         <file>Icons/about.ico</file>
         <file>Icons/MeshDenoise.ico</file>
+        <file>Icons/model_color.ico</file>
     </qresource>
 </RCC>

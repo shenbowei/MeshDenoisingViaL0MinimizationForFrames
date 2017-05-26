@@ -44,6 +44,11 @@ public slots:
         this->updateGL();
     }
 
+    void setDrawModelColor(bool _val){
+        examiner_->setDrawModelColor(_val);
+        this->updateGL();
+    }
+
 protected:
     void mousePressEvent(QMouseEvent *event);
     void mouseReleaseEvent(QMouseEvent *event);
