@@ -1,41 +1,48 @@
-/*===========================================================================*\
+/* ========================================================================= *
  *                                                                           *
  *                               OpenMesh                                    *
- *      Copyright (C) 2001-2015 by Computer Graphics Group, RWTH Aachen      *
- *                           www.openmesh.org                                *
+ *           Copyright (c) 2001-2015, RWTH-Aachen University                 *
+ *           Department of Computer Graphics and Multimedia                  *
+ *                          All rights reserved.                             *
+ *                            www.openmesh.org                               *
  *                                                                           *
- *---------------------------------------------------------------------------* 
- *  This file is part of OpenMesh.                                           *
+ *---------------------------------------------------------------------------*
+ * This file is part of OpenMesh.                                            *
+ *---------------------------------------------------------------------------*
  *                                                                           *
- *  OpenMesh is free software: you can redistribute it and/or modify         * 
- *  it under the terms of the GNU Lesser General Public License as           *
- *  published by the Free Software Foundation, either version 3 of           *
- *  the License, or (at your option) any later version with the              *
- *  following exceptions:                                                    *
+ * Redistribution and use in source and binary forms, with or without        *
+ * modification, are permitted provided that the following conditions        *
+ * are met:                                                                  *
  *                                                                           *
- *  If other files instantiate templates or use macros                       *
- *  or inline functions from this file, or you compile this file and         *
- *  link it with other files to produce an executable, this file does        *
- *  not by itself cause the resulting executable to be covered by the        *
- *  GNU Lesser General Public License. This exception does not however       *
- *  invalidate any other reasons why the executable file might be            *
- *  covered by the GNU Lesser General Public License.                        *
+ * 1. Redistributions of source code must retain the above copyright notice, *
+ *    this list of conditions and the following disclaimer.                  *
  *                                                                           *
- *  OpenMesh is distributed in the hope that it will be useful,              *
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of           *
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            *
- *  GNU Lesser General Public License for more details.                      *
+ * 2. Redistributions in binary form must reproduce the above copyright      *
+ *    notice, this list of conditions and the following disclaimer in the    *
+ *    documentation and/or other materials provided with the distribution.   *
  *                                                                           *
- *  You should have received a copy of the GNU LesserGeneral Public          *
- *  License along with OpenMesh.  If not,                                    *
- *  see <http://www.gnu.org/licenses/>.                                      *
+ * 3. Neither the name of the copyright holder nor the names of its          *
+ *    contributors may be used to endorse or promote products derived from   *
+ *    this software without specific prior written permission.               *
  *                                                                           *
-\*===========================================================================*/ 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS       *
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED *
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A           *
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER *
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,  *
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,       *
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR        *
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF    *
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING      *
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS        *
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.              *
+ *                                                                           *
+ * ========================================================================= */
 
 /*===========================================================================*\
  *                                                                           *             
- *   $Revision: 1188 $                                                         *
- *   $Date: 2015-01-05 16:34:10 +0100 (Mo, 05 Jan 2015) $                   *
+ *   $Revision$                                                         *
+ *   $Date$                   *
  *                                                                           *
 \*===========================================================================*/
 
@@ -128,7 +135,8 @@ PolyConnectivity::add_face(const VertexHandle* _vertex_handles, size_t _vhs_size
     edgeData_.resize(n);
     next_cache_.resize(6*n);
   }
-  next_cache_count_ = 0;
+
+  size_t next_cache_count = 0;
 
   // don't allow degenerated faces
   assert (n > 2);
@@ -176,16 +184,18 @@ PolyConnectivity::add_face(const VertexHandle* _vertex_handles, size_t _vhs_size
         do
           boundary_prev =
             opposite_halfedge_handle(next_halfedge_handle(boundary_prev));
-        while (!is_boundary(boundary_prev) || boundary_prev==inner_prev);
+        while (!is_boundary(boundary_prev));
         boundary_next = next_halfedge_handle(boundary_prev);
-        assert(is_boundary(boundary_prev));
-        assert(is_boundary(boundary_next));
+
         // ok ?
-        if (boundary_next == inner_next)
+        if (boundary_prev == inner_prev)
         {
           omerr() << "PolyMeshT::add_face: patch re-linking failed\n";
           return InvalidFaceHandle;
         }
+
+        assert(is_boundary(boundary_prev));
+        assert(is_boundary(boundary_next));
 
         // other halfedges' handles
         patch_start = next_halfedge_handle(inner_prev);
@@ -199,9 +209,9 @@ PolyConnectivity::add_face(const VertexHandle* _vertex_handles, size_t _vhs_size
         assert(inner_next.is_valid());
 
         // relink
-        next_cache_[next_cache_count_++] = std::make_pair(boundary_prev, patch_start);
-        next_cache_[next_cache_count_++] = std::make_pair(patch_end, boundary_next);
-        next_cache_[next_cache_count_++] = std::make_pair(inner_prev, inner_next);
+        next_cache_[next_cache_count++] = std::make_pair(boundary_prev, patch_start);
+        next_cache_[next_cache_count++] = std::make_pair(patch_end, boundary_next);
+        next_cache_[next_cache_count++] = std::make_pair(inner_prev, inner_next);
       }
     }
   }
@@ -243,14 +253,14 @@ PolyConnectivity::add_face(const VertexHandle* _vertex_handles, size_t _vhs_size
         case 1: // prev is new, next is old
           boundary_prev = prev_halfedge_handle(inner_next);
           assert(boundary_prev.is_valid());
-          next_cache_[next_cache_count_++] = std::make_pair(boundary_prev, outer_next);
+          next_cache_[next_cache_count++] = std::make_pair(boundary_prev, outer_next);
           set_halfedge_handle(vh, outer_next);
           break;
 
         case 2: // next is new, prev is old
           boundary_next = next_halfedge_handle(inner_prev);
           assert(boundary_next.is_valid());
-          next_cache_[next_cache_count_++] = std::make_pair(outer_prev, boundary_next);
+          next_cache_[next_cache_count++] = std::make_pair(outer_prev, boundary_next);
           set_halfedge_handle(vh, boundary_next);
           break;
 
@@ -258,7 +268,7 @@ PolyConnectivity::add_face(const VertexHandle* _vertex_handles, size_t _vhs_size
           if (!halfedge_handle(vh).is_valid())
           {
             set_halfedge_handle(vh, outer_next);
-            next_cache_[next_cache_count_++] = std::make_pair(outer_prev, outer_next);
+            next_cache_[next_cache_count++] = std::make_pair(outer_prev, outer_next);
           }
           else
           {
@@ -266,14 +276,14 @@ PolyConnectivity::add_face(const VertexHandle* _vertex_handles, size_t _vhs_size
             boundary_prev = prev_halfedge_handle(boundary_next);
             assert(boundary_prev.is_valid());
             assert(boundary_next.is_valid());
-            next_cache_[next_cache_count_++] = std::make_pair(boundary_prev, outer_next);
-            next_cache_[next_cache_count_++] = std::make_pair(outer_prev, boundary_next);
+            next_cache_[next_cache_count++] = std::make_pair(boundary_prev, outer_next);
+            next_cache_[next_cache_count++] = std::make_pair(outer_prev, boundary_next);
           }
           break;
       }
 
       // set inner link
-      next_cache_[next_cache_count_++] = std::make_pair(inner_prev, inner_next);
+      next_cache_[next_cache_count++] = std::make_pair(inner_prev, inner_next);
     }
     else edgeData_[ii].needs_adjust = (halfedge_handle(vh) == inner_next);
 
@@ -283,7 +293,7 @@ PolyConnectivity::add_face(const VertexHandle* _vertex_handles, size_t _vhs_size
   }
 
   // process next halfedge cache
-  for (i = 0; i < next_cache_count_; ++i)
+  for (i = 0; i < next_cache_count; ++i)
     set_next_halfedge_handle(next_cache_[i].first, next_cache_[i].second);
 
 
@@ -1022,6 +1032,7 @@ void PolyConnectivity::triangulate(FaceHandle _fh)
 
   HalfedgeHandle base_heh(halfedge_handle(_fh));
   VertexHandle start_vh = from_vertex_handle(base_heh);
+  HalfedgeHandle prev_heh(prev_halfedge_handle(base_heh));
   HalfedgeHandle next_heh(next_halfedge_handle(base_heh));
 
   while (to_vertex_handle(next_halfedge_handle(next_heh)) != start_vh)
@@ -1040,6 +1051,10 @@ void PolyConnectivity::triangulate(FaceHandle _fh)
     set_face_handle(base_heh, new_fh);
     set_face_handle(next_heh, new_fh);
     set_face_handle(new_heh,  new_fh);
+
+    copy_all_properties(prev_heh, new_heh, true);
+    copy_all_properties(prev_heh, opposite_halfedge_handle(new_heh), true);
+    copy_all_properties(_fh, new_fh, true);
 
     base_heh = opposite_halfedge_handle(new_heh);
     next_heh = next_next_heh;

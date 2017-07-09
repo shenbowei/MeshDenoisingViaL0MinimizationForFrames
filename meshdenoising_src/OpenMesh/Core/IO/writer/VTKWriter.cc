@@ -3,11 +3,9 @@
 #include <fstream>
 #include <limits>
 
-#include <OpenMesh/Core/System/config.h>
 #include <OpenMesh/Core/IO/BinaryHelper.hh>
 #include <OpenMesh/Core/IO/writer/VTKWriter.hh>
 #include <OpenMesh/Core/IO/IOManager.hh>
-#include <OpenMesh/Core/System/omstream.hh>
 #include <OpenMesh/Core/Utils/color_cast.hh>
 
 //=== NAMESPACES ==============================================================
@@ -81,11 +79,11 @@ bool _VTKWriter_::write(std::ostream& _out, BaseExporter& _be, Options _opt, std
     size_t nv = _be.n_vertices();
     for (size_t i = 0; i < nv; ++i) {
         Vec3f v = _be.point(VertexHandle(int(i)));
-        _out << v[0] << ' ' << v[1] << ' ' << v[2] << std::endl;
+        _out << v[0] << ' ' << v[1] << ' ' << v[2] << '\n';
     }
 
     // faces
-    _out << "POLYGONS " << nf << ' ' << polygon_table_size << std::endl;
+    _out << "POLYGONS " << nf << ' ' << polygon_table_size << '\n';
     for (size_t i = 0; i < nf; ++i) {
         _be.get_vhandles(FaceHandle(int(i)), vhandles);
 
@@ -93,7 +91,7 @@ bool _VTKWriter_::write(std::ostream& _out, BaseExporter& _be, Options _opt, std
         for (size_t j = 0; j < vhandles.size(); ++j) {
             _out << " " << vhandles[j].idx();
         }
-        _out << std::endl;
+        _out << '\n';
     }
 
     return true;

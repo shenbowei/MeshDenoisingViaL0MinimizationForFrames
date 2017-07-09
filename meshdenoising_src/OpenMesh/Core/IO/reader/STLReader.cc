@@ -1,41 +1,48 @@
-/*===========================================================================*\
+/* ========================================================================= *
  *                                                                           *
  *                               OpenMesh                                    *
- *      Copyright (C) 2001-2015 by Computer Graphics Group, RWTH Aachen      *
- *                           www.openmesh.org                                *
+ *           Copyright (c) 2001-2015, RWTH-Aachen University                 *
+ *           Department of Computer Graphics and Multimedia                  *
+ *                          All rights reserved.                             *
+ *                            www.openmesh.org                               *
  *                                                                           *
  *---------------------------------------------------------------------------*
- *  This file is part of OpenMesh.                                           *
+ * This file is part of OpenMesh.                                            *
+ *---------------------------------------------------------------------------*
  *                                                                           *
- *  OpenMesh is free software: you can redistribute it and/or modify         *
- *  it under the terms of the GNU Lesser General Public License as           *
- *  published by the Free Software Foundation, either version 3 of           *
- *  the License, or (at your option) any later version with the              *
- *  following exceptions:                                                    *
+ * Redistribution and use in source and binary forms, with or without        *
+ * modification, are permitted provided that the following conditions        *
+ * are met:                                                                  *
  *                                                                           *
- *  If other files instantiate templates or use macros                       *
- *  or inline functions from this file, or you compile this file and         *
- *  link it with other files to produce an executable, this file does        *
- *  not by itself cause the resulting executable to be covered by the        *
- *  GNU Lesser General Public License. This exception does not however       *
- *  invalidate any other reasons why the executable file might be            *
- *  covered by the GNU Lesser General Public License.                        *
+ * 1. Redistributions of source code must retain the above copyright notice, *
+ *    this list of conditions and the following disclaimer.                  *
  *                                                                           *
- *  OpenMesh is distributed in the hope that it will be useful,              *
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of           *
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            *
- *  GNU Lesser General Public License for more details.                      *
+ * 2. Redistributions in binary form must reproduce the above copyright      *
+ *    notice, this list of conditions and the following disclaimer in the    *
+ *    documentation and/or other materials provided with the distribution.   *
  *                                                                           *
- *  You should have received a copy of the GNU LesserGeneral Public          *
- *  License along with OpenMesh.  If not,                                    *
- *  see <http://www.gnu.org/licenses/>.                                      *
+ * 3. Neither the name of the copyright holder nor the names of its          *
+ *    contributors may be used to endorse or promote products derived from   *
+ *    this software without specific prior written permission.               *
  *                                                                           *
-\*===========================================================================*/
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS       *
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED *
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A           *
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER *
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,  *
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,       *
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR        *
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF    *
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING      *
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS        *
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.              *
+ *                                                                           *
+ * ========================================================================= */
 
 /*===========================================================================*\
  *                                                                           *
- *   $Revision: 1188 $                                                         *
- *   $Date: 2015-01-05 16:34:10 +0100 (Mo, 05 Jan 2015) $                   *
+ *   $Revision$                                                         *
+ *   $Date$                   *
  *                                                                           *
 \*===========================================================================*/
 
@@ -48,14 +55,19 @@
 
 #include <float.h>
 #include <fstream>
+#include <cstring>
 
 // OpenMesh
-#include <OpenMesh/Core/System/config.h>
 #include <OpenMesh/Core/IO/BinaryHelper.hh>
 #include <OpenMesh/Core/IO/reader/STLReader.hh>
 #include <OpenMesh/Core/IO/IOManager.hh>
-#include <OpenMesh/Core/System/omstream.hh>
-#include <OpenMesh/Core/IO/importer/BaseImporter.hh>
+
+//comppare strings crossplatform ignorign case
+#ifdef _WIN32
+  #define strnicmp _strnicmp
+#else
+  #define strnicmp strncasecmp
+#endif
 
 
 //=== NAMESPACES ==============================================================
@@ -242,6 +254,9 @@ read_stla(std::istream& _in, BaseImporter& _bi, Options& _opt) const
 
   std::string line;
 
+  std::string        garbage;
+  std::stringstream  strstream;
+
   bool facet_normal(false);
 
   while( _in && !_in.eof() ) {
@@ -258,9 +273,8 @@ read_stla(std::istream& _in, BaseImporter& _bi, Options& _opt) const
 
     // Normal found?
     if (line.find("facet normal") != std::string::npos) {
-      std::stringstream strstream(line);
-
-      std::string garbage;
+      strstream.str(line);
+      strstream.clear();
 
       // facet
       strstream >> garbage;
@@ -285,9 +299,9 @@ read_stla(std::istream& _in, BaseImporter& _bi, Options& _opt) const
         std::getline(_in, line);
         trimStdString(line);
 
-        std::stringstream strstream(line);
+        strstream.str(line);
+        strstream.clear();
 
-        std::string garbage;
         strstream >> garbage;
 
         strstream >> v[0];
@@ -441,41 +455,62 @@ _STLReader_::STL_Type
 _STLReader_::
 check_stl_type(const std::string& _filename) const
 {
-  // assume it's binary stl, then file size is known from #triangles
-  // if size matches, it's really binary
+
+   // open file
+   std::ifstream ifs (_filename.c_str(), std::ifstream::binary);
+   if(!ifs.good())
+   {
+     omerr() << "could not open file" << _filename << std::endl;
+     return NONE;
+   }
+
+   //find first non whitespace character
+   std::string line = "";
+   std::size_t firstChar;
+   while(line.empty() && ifs.good())
+   {
+     std::getline(ifs,line);
+     firstChar = line.find_first_not_of("\t ");
+   }
+
+   //check for ascii keyword solid
+   if(strnicmp("solid",&line[firstChar],5) == 0)
+   {
+     return STLA;
+   }
+   ifs.close();
+
+   //if the file does not start with solid it is probably STLB
+   //check the file size to verify it.
+
+   //open the file
+   FILE* in = fopen(_filename.c_str(), "rb");
+   if (!in) return NONE;
+
+   // determine endian mode
+   union { unsigned int i; unsigned char c[4]; } endian_test;
+   endian_test.i = 1;
+   bool swapFlag = (endian_test.c[3] == 1);
 
 
-  // open file
-  FILE* in = fopen(_filename.c_str(), "rb");
-  if (!in) return NONE;
+   // read number of triangles
+   char dummy[100];
+   fread(dummy, 1, 80, in);
+   size_t nT = read_int(in, swapFlag);
 
 
-  // determine endian mode
-  union { unsigned int i; unsigned char c[4]; } endian_test;
-  endian_test.i = 1;
-  bool swapFlag = (endian_test.c[3] == 1);
+   // compute file size from nT
+   size_t binary_size = 84 + nT*50;
 
+   // get actual file size
+   size_t file_size(0);
+   rewind(in);
+   while (!feof(in))
+     file_size += fread(dummy, 1, 100, in);
+   fclose(in);
 
-  // read number of triangles
-  char dummy[100];
-  fread(dummy, 1, 80, in);
-  size_t nT = read_int(in, swapFlag);
-
-
-  // compute file size from nT
-  size_t binary_size = 84 + nT*50;
-
-
-  // get actual file size
-  size_t file_size(0);
-  rewind(in);
-  while (!feof(in))
-    file_size += fread(dummy, 1, 100, in);
-  fclose(in);
-
-
-  // if sizes match -> it's STLB
-  return (binary_size == file_size ? STLB : STLA);
+   // if sizes match -> it's STLB
+      return (binary_size == file_size ? STLB : NONE);
 }
 
 

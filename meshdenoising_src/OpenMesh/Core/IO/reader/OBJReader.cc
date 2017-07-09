@@ -1,41 +1,48 @@
-/*===========================================================================*\
+/* ========================================================================= *
  *                                                                           *
  *                               OpenMesh                                    *
- *      Copyright (C) 2001-2015 by Computer Graphics Group, RWTH Aachen      *
- *                           www.openmesh.org                                *
+ *           Copyright (c) 2001-2015, RWTH-Aachen University                 *
+ *           Department of Computer Graphics and Multimedia                  *
+ *                          All rights reserved.                             *
+ *                            www.openmesh.org                               *
  *                                                                           *
  *---------------------------------------------------------------------------*
- *  This file is part of OpenMesh.                                           *
+ * This file is part of OpenMesh.                                            *
+ *---------------------------------------------------------------------------*
  *                                                                           *
- *  OpenMesh is free software: you can redistribute it and/or modify         *
- *  it under the terms of the GNU Lesser General Public License as           *
- *  published by the Free Software Foundation, either version 3 of           *
- *  the License, or (at your option) any later version with the              *
- *  following exceptions:                                                    *
+ * Redistribution and use in source and binary forms, with or without        *
+ * modification, are permitted provided that the following conditions        *
+ * are met:                                                                  *
  *                                                                           *
- *  If other files instantiate templates or use macros                       *
- *  or inline functions from this file, or you compile this file and         *
- *  link it with other files to produce an executable, this file does        *
- *  not by itself cause the resulting executable to be covered by the        *
- *  GNU Lesser General Public License. This exception does not however       *
- *  invalidate any other reasons why the executable file might be            *
- *  covered by the GNU Lesser General Public License.                        *
+ * 1. Redistributions of source code must retain the above copyright notice, *
+ *    this list of conditions and the following disclaimer.                  *
  *                                                                           *
- *  OpenMesh is distributed in the hope that it will be useful,              *
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of           *
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            *
- *  GNU Lesser General Public License for more details.                      *
+ * 2. Redistributions in binary form must reproduce the above copyright      *
+ *    notice, this list of conditions and the following disclaimer in the    *
+ *    documentation and/or other materials provided with the distribution.   *
  *                                                                           *
- *  You should have received a copy of the GNU LesserGeneral Public          *
- *  License along with OpenMesh.  If not,                                    *
- *  see <http://www.gnu.org/licenses/>.                                      *
+ * 3. Neither the name of the copyright holder nor the names of its          *
+ *    contributors may be used to endorse or promote products derived from   *
+ *    this software without specific prior written permission.               *
  *                                                                           *
-\*===========================================================================*/
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS       *
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED *
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A           *
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER *
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,  *
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,       *
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR        *
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF    *
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING      *
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS        *
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.              *
+ *                                                                           *
+ * ========================================================================= */
 
 /*===========================================================================*\
  *                                                                           *
- *   $Revision: 1188 $                                                         *
- *   $Date: 2015-01-05 16:34:10 +0100 (Mo, 05 Jan 2015) $                   *
+ *   $Revision$                                                         *
+ *   $Date$                   *
  *                                                                           *
 \*===========================================================================*/
 
@@ -46,7 +53,6 @@
 // OpenMesh
 #include <OpenMesh/Core/IO/reader/OBJReader.hh>
 #include <OpenMesh/Core/IO/IOManager.hh>
-#include <OpenMesh/Core/System/omstream.hh>
 #include <OpenMesh/Core/Utils/vector_cast.hh>
 #include <OpenMesh/Core/Utils/color_cast.hh>
 // STL
@@ -56,13 +62,13 @@
 #elif defined(_STLPORT_VERSION) && (_STLPORT_VERSION==0x460)
 #  include <cctype>
 #else
-#  include <cctype>
 using std::isspace;
 #endif
 
 #ifndef WIN32
-#include <string.h>
 #endif
+
+#include <fstream>
 
 //=== NAMESPACES ==============================================================
 
@@ -92,6 +98,18 @@ void trimString( std::string& _string) {
     _string = "";
   else
     _string = _string.substr( start, end-start+1 );
+}
+
+//-----------------------------------------------------------------------------
+
+// remove duplicated indices from one face
+void remove_duplicated_vertices(BaseImporter::VHandles& _indices)
+{
+  BaseImporter::VHandles::iterator endIter = _indices.end();
+  for (BaseImporter::VHandles::iterator iter = _indices.begin(); iter != endIter; ++iter)
+    endIter = std::remove(iter+1, endIter, *(iter));
+
+  _indices.erase(endIter,_indices.end());
 }
 
 //-----------------------------------------------------------------------------
@@ -147,6 +165,8 @@ read_material(std::fstream& _in)
   std::string keyWrd;
   std::string textureName;
 
+  std::stringstream  stream;
+
   std::string key;
   Material    mat;
   float       f1,f2,f3;
@@ -168,7 +188,8 @@ read_material(std::fstream& _in)
     if ( line.empty() )
       continue;
 
-    std::stringstream stream(line);
+    stream.str(line);
+    stream.clear();
 
     stream >> keyWrd;
 
@@ -258,6 +279,128 @@ read_material(std::fstream& _in)
   }
   return true;
 }
+//-----------------------------------------------------------------------------
+
+bool
+_OBJReader_::
+read_vertices(std::istream& _in, BaseImporter& _bi, Options& _opt,
+              std::vector<Vec3f> & normals,
+              std::vector<Vec3f> & colors,
+              std::vector<Vec3f> & texcoords3d,
+              std::vector<Vec2f> & texcoords,
+              std::vector<VertexHandle> & vertexHandles,
+              Options & fileOptions)
+{
+    float x, y, z, u, v, w;
+    float r, g, b;
+
+    std::string line;
+    std::string keyWrd;
+
+    std::stringstream stream;
+
+
+    // Options supplied by the user
+    const Options & userOptions = _opt;
+
+    while( _in && !_in.eof() )
+    {
+        std::getline(_in,line);
+        if ( _in.bad() ){
+          omerr() << "  Warning! Could not read file properly!\n";
+          return false;
+        }
+
+        // Trim Both leading and trailing spaces
+        trimString(line);
+
+        // comment
+        if ( line.size() == 0 || line[0] == '#' || isspace(line[0]) ) {
+          continue;
+        }
+
+        stream.str(line);
+        stream.clear();
+
+        stream >> keyWrd;
+
+        // vertex
+        if (keyWrd == "v")
+        {
+          stream >> x; stream >> y; stream >> z;
+
+          if ( !stream.fail() )
+          {
+            vertexHandles.push_back(_bi.add_vertex(OpenMesh::Vec3f(x,y,z)));
+            stream >> r; stream >> g; stream >> b;
+
+            if ( !stream.fail() )
+            {
+              if (  userOptions.vertex_has_color() ) {
+                fileOptions += Options::VertexColor;
+                colors.push_back(OpenMesh::Vec3f(r,g,b));
+              }
+            }
+          }
+        }
+
+        // texture coord
+        else if (keyWrd == "vt")
+        {
+          stream >> u; stream >> v;
+
+          if ( !stream.fail()  ){
+
+            if ( userOptions.vertex_has_texcoord() || userOptions.face_has_texcoord() ) {
+              texcoords.push_back(OpenMesh::Vec2f(u, v));
+
+              // Can be used for both!
+              fileOptions += Options::VertexTexCoord;
+              fileOptions += Options::FaceTexCoord;
+
+              // try to read the w component as it is optional
+              stream >> w;
+              if ( !stream.fail()  )
+                  texcoords3d.push_back(OpenMesh::Vec3f(u, v, w));
+
+            }
+
+          }else{
+            omerr() << "Only single 2D or 3D texture coordinate per vertex"
+                  << "allowed!" << std::endl;
+            return false;
+          }
+        }
+
+        // color per vertex
+        else if (keyWrd == "vc")
+        {
+          stream >> r; stream >> g; stream >> b;
+
+          if ( !stream.fail()   ){
+            if ( userOptions.vertex_has_color() ) {
+              colors.push_back(OpenMesh::Vec3f(r,g,b));
+              fileOptions += Options::VertexColor;
+            }
+          }
+        }
+
+        // normal
+        else if (keyWrd == "vn")
+        {
+          stream >> x; stream >> y; stream >> z;
+
+          if ( !stream.fail() ) {
+            if (userOptions.vertex_has_normal() ){
+              normals.push_back(OpenMesh::Vec3f(x,y,z));
+              fileOptions += Options::VertexNormal;
+            }
+          }
+        }
+    }
+
+    return true;
+}
 
 //-----------------------------------------------------------------------------
 
@@ -265,20 +408,22 @@ bool
 _OBJReader_::
 read(std::istream& _in, BaseImporter& _bi, Options& _opt)
 {
-
   std::string line;
   std::string keyWrd;
 
-  float                     x, y, z, u, v;
-  int                       r, g, b;
-  BaseImporter::VHandles    vhandles;
   std::vector<Vec3f>        normals;
-  std::vector<Vec3uc>       colors;
+  std::vector<Vec3f>        colors;
+  std::vector<Vec3f>        texcoords3d;
   std::vector<Vec2f>        texcoords;
-  std::vector<Vec2f>        face_texcoords;
   std::vector<VertexHandle> vertexHandles;
 
+  BaseImporter::VHandles    vhandles;
+  std::vector<Vec3f>        face_texcoords3d;
+  std::vector<Vec2f>        face_texcoords;
+
   std::string               matname;
+
+  std::stringstream         stream, lineData, tmp;
 
 
   // Options supplied by the user
@@ -287,7 +432,22 @@ read(std::istream& _in, BaseImporter& _bi, Options& _opt)
   // Options collected via file parsing
   Options fileOptions;
 
+  // pass 1: read vertices
+  if ( !read_vertices(_in, _bi, _opt,
+                      normals, colors, texcoords3d, texcoords,
+                      vertexHandles, fileOptions) ){
+      return false;
+  }
 
+  // reset stream for second pass
+  _in.clear();
+  _in.seekg(0, std::ios::beg);
+
+  int nCurrentPositions = 0,
+      nCurrentTexcoords = 0,
+      nCurrentNormals   = 0;
+  
+  // pass 2: read faces
   while( _in && !_in.eof() )
   {
     std::getline(_in,line);
@@ -304,7 +464,8 @@ read(std::istream& _in, BaseImporter& _bi, Options& _opt)
       continue;
     }
 
-    std::stringstream stream(line);
+    stream.str(line);
+    stream.clear();
 
     stream >> keyWrd;
 
@@ -327,11 +488,11 @@ read(std::istream& _in, BaseImporter& _bi, Options& _opt)
       if ( matStream ){
 
         if ( !read_material( matStream ) )
-	        omerr() << "  Warning! Could not read file properly!\n";
+            omerr() << "  Warning! Could not read file properly!\n";
         matStream.close();
 
       }else
-	      omerr() << "  Warning! Material file '" << matFile << "' not found!\n";
+          omerr() << "  Warning! Material file '" << matFile << "' not found!\n";
 
       //omlog() << "  " << materials_.size() << " materials loaded.\n";
 
@@ -355,78 +516,23 @@ read(std::istream& _in, BaseImporter& _bi, Options& _opt)
         matname="";
       }
     }
-
-    // vertex
+    
+    // track current number of parsed vertex attributes,
+    // to allow for OBJs negative indices
     else if (keyWrd == "v")
     {
-      stream >> x; stream >> y; stream >> z;
-
-      if ( !stream.fail() )
-      {
-        vertexHandles.push_back(_bi.add_vertex(OpenMesh::Vec3f(x,y,z)));
-        stream >> r; stream >> g; stream >> b;
-
-        if ( !stream.fail() )
-        {
-          if (  userOptions.vertex_has_color() ) {
-            fileOptions += Options::VertexColor;
-            colors.push_back(OpenMesh::Vec3uc((unsigned char)r,(unsigned char)g,(unsigned char)b));
-          }
-        }
-      }
+        ++nCurrentPositions;
     }
-
-    // texture coord
     else if (keyWrd == "vt")
     {
-      stream >> u; stream >> v;
-
-      if ( !stream.fail()  ){
-
-        if ( userOptions.vertex_has_texcoord() || userOptions.face_has_texcoord() ) {
-          texcoords.push_back(OpenMesh::Vec2f(u, v));
-
-          // Can be used for both!
-          fileOptions += Options::VertexTexCoord;
-          fileOptions += Options::FaceTexCoord;
-        }
-
-      }else{
-
-        omerr() << "Only single 2D texture coordinate per vertex"
-              << "allowed!" << std::endl;
-        return false;
-      }
+        ++nCurrentTexcoords;
     }
-
-    // color per vertex
-    else if (keyWrd == "vc")
-    {
-      stream >> r; stream >> g; stream >> b;
-
-      if ( !stream.fail()   ){
-        if ( userOptions.vertex_has_color() ) {
-          colors.push_back(OpenMesh::Vec3uc((unsigned char)r,(unsigned char)g,(unsigned char)b));
-          fileOptions += Options::VertexColor;
-        }
-      }
-    }
-
-    // normal
     else if (keyWrd == "vn")
     {
-      stream >> x; stream >> y; stream >> z;
-
-      if ( !stream.fail() ) {
-        if (userOptions.vertex_has_normal() ){
-          normals.push_back(OpenMesh::Vec3f(x,y,z));
-          fileOptions += Options::VertexNormal;
-        }
-      }
+        ++nCurrentNormals;
     }
 
-
-    // face
+    // faces
     else if (keyWrd == "f")
     {
       int component(0), nV(0);
@@ -438,7 +544,8 @@ read(std::istream& _in, BaseImporter& _bi, Options& _opt)
       // read full line after detecting a face
       std::string faceLine;
       std::getline(stream,faceLine);
-      std::stringstream lineData( faceLine );
+      lineData.str( faceLine );
+      lineData.clear();
 
       FaceHandle fh;
       BaseImporter::VHandles faceVertices;
@@ -459,7 +566,8 @@ read(std::istream& _in, BaseImporter& _bi, Options& _opt)
           if( found != std::string::npos ){
 
             // read the index value
-            std::stringstream tmp( vertex.substr(0,found) );
+            tmp.str( vertex.substr(0,found) );
+            tmp.clear();
 
             // If we get an empty string this property is undefined in the file
             if ( vertex.substr(0,found).empty() ) {
@@ -482,7 +590,8 @@ read(std::istream& _in, BaseImporter& _bi, Options& _opt)
           } else {
 
             // last component of the vertex, read it.
-            std::stringstream tmp( vertex );
+            tmp.str( vertex );
+            tmp.clear();
             tmp >> value;
 
             // Clear vertex after finished reading the line
@@ -502,13 +611,19 @@ read(std::istream& _in, BaseImporter& _bi, Options& _opt)
                 // Calculation of index :
                 // -1 is the last vertex in the list
                 // As obj counts from 1 and not zero add +1
-                value = int(_bi.n_vertices() + value + 1);
+                value = nCurrentPositions + value + 1;
               }
               // Obj counts from 1 and not zero .. array counts from zero therefore -1
               vhandles.push_back(VertexHandle(value-1));
               faceVertices.push_back(VertexHandle(value-1));
-              if (fileOptions.vertex_has_color() )
-                _bi.set_color(vhandles.back(), colors[value-1]);
+              if (fileOptions.vertex_has_color()) {
+                if ((unsigned int)(value - 1) < colors.size()) {
+                  _bi.set_color(vhandles.back(), colors[value - 1]);
+                }
+                else {
+                  omerr() << "Error setting vertex color" << std::endl;
+                }
+              }                  
               break;
 	      
             case 1: // texture coord
@@ -516,7 +631,7 @@ read(std::istream& _in, BaseImporter& _bi, Options& _opt)
                 // Calculation of index :
                 // -1 is the last vertex in the list
                 // As obj counts from 1 and not zero add +1
-                value = int(texcoords.size()) + value + 1;
+                value = nCurrentTexcoords + value + 1;
               }
               assert(!vhandles.empty());
 
@@ -526,6 +641,8 @@ read(std::istream& _in, BaseImporter& _bi, Options& _opt)
                 if (!texcoords.empty() && (unsigned int) (value - 1) < texcoords.size()) {
                   // Obj counts from 1 and not zero .. array counts from zero therefore -1
                   _bi.set_texcoord(vhandles.back(), texcoords[value - 1]);
+                  if(!texcoords3d.empty() && (unsigned int) (value -1) < texcoords3d.size())
+                    _bi.set_texcoord(vhandles.back(), texcoords3d[value - 1]);
                 } else {
                   omerr() << "Error setting Texture coordinates" << std::endl;
                 }
@@ -536,6 +653,8 @@ read(std::istream& _in, BaseImporter& _bi, Options& _opt)
 
                   if (!texcoords.empty() && (unsigned int) (value - 1) < texcoords.size()) {
                     face_texcoords.push_back( texcoords[value-1] );
+                    if(!texcoords3d.empty() && (unsigned int) (value -1) < texcoords3d.size())
+                      face_texcoords3d.push_back( texcoords3d[value-1] );
                   } else {
                     omerr() << "Error setting Texture coordinates" << std::endl;
                   }
@@ -549,14 +668,18 @@ read(std::istream& _in, BaseImporter& _bi, Options& _opt)
                 // Calculation of index :
                 // -1 is the last vertex in the list
                 // As obj counts from 1 and not zero add +1
-                value = int(normals.size()) + value + 1;
+                value = nCurrentNormals + value + 1;
               }
 
               // Obj counts from 1 and not zero .. array counts from zero therefore -1
               if (fileOptions.vertex_has_normal() ) {
-                assert(!vhandles.empty());
-                assert((unsigned int)(value-1) < normals.size());
-                _bi.set_normal(vhandles.back(), normals[value-1]);
+                assert(!vhandles.empty());                
+                if ((unsigned int)(value - 1) < normals.size()) {
+                    _bi.set_normal(vhandles.back(), normals[value - 1]);
+                }
+                else {
+                    omerr() << "Error setting vertex normal" << std::endl;
+                }                
               }
               break;
           }
@@ -575,10 +698,17 @@ read(std::istream& _in, BaseImporter& _bi, Options& _opt)
       // note that add_face can possibly triangulate the faces, which is why we have to
       // store the current number of faces first
       size_t n_faces = _bi.n_faces();
-      fh = _bi.add_face(faceVertices);
+      remove_duplicated_vertices(faceVertices);
+
+      //A minimum of three vertices are required.
+      if (faceVertices.size() > 2)
+        fh = _bi.add_face(faceVertices);
 
       if (!vhandles.empty() && fh.is_valid() )
+      {
         _bi.add_face_texcoords(fh, vhandles[0], face_texcoords);
+        _bi.add_face_texcoords(fh, vhandles[0], face_texcoords3d);
+      }
 
       if ( !matname.empty()  )
       {

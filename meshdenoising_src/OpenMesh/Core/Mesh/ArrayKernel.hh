@@ -1,41 +1,48 @@
-/*===========================================================================*\
+/* ========================================================================= *
  *                                                                           *
  *                               OpenMesh                                    *
- *      Copyright (C) 2001-2015 by Computer Graphics Group, RWTH Aachen      *
- *                           www.openmesh.org                                *
+ *           Copyright (c) 2001-2015, RWTH-Aachen University                 *
+ *           Department of Computer Graphics and Multimedia                  *
+ *                          All rights reserved.                             *
+ *                            www.openmesh.org                               *
  *                                                                           *
  *---------------------------------------------------------------------------*
- *  This file is part of OpenMesh.                                           *
+ * This file is part of OpenMesh.                                            *
+ *---------------------------------------------------------------------------*
  *                                                                           *
- *  OpenMesh is free software: you can redistribute it and/or modify         *
- *  it under the terms of the GNU Lesser General Public License as           *
- *  published by the Free Software Foundation, either version 3 of           *
- *  the License, or (at your option) any later version with the              *
- *  following exceptions:                                                    *
+ * Redistribution and use in source and binary forms, with or without        *
+ * modification, are permitted provided that the following conditions        *
+ * are met:                                                                  *
  *                                                                           *
- *  If other files instantiate templates or use macros                       *
- *  or inline functions from this file, or you compile this file and         *
- *  link it with other files to produce an executable, this file does        *
- *  not by itself cause the resulting executable to be covered by the        *
- *  GNU Lesser General Public License. This exception does not however       *
- *  invalidate any other reasons why the executable file might be            *
- *  covered by the GNU Lesser General Public License.                        *
+ * 1. Redistributions of source code must retain the above copyright notice, *
+ *    this list of conditions and the following disclaimer.                  *
  *                                                                           *
- *  OpenMesh is distributed in the hope that it will be useful,              *
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of           *
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            *
- *  GNU Lesser General Public License for more details.                      *
+ * 2. Redistributions in binary form must reproduce the above copyright      *
+ *    notice, this list of conditions and the following disclaimer in the    *
+ *    documentation and/or other materials provided with the distribution.   *
  *                                                                           *
- *  You should have received a copy of the GNU LesserGeneral Public          *
- *  License along with OpenMesh.  If not,                                    *
- *  see <http://www.gnu.org/licenses/>.                                      *
+ * 3. Neither the name of the copyright holder nor the names of its          *
+ *    contributors may be used to endorse or promote products derived from   *
+ *    this software without specific prior written permission.               *
  *                                                                           *
-\*===========================================================================*/
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS       *
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED *
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A           *
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER *
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,  *
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,       *
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR        *
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF    *
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING      *
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS        *
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.              *
+ *                                                                           *
+ * ========================================================================= */
 
 /*===========================================================================*\
  *                                                                           *
- *   $Revision: 1188 $                                                         *
- *   $Date: 2015-01-05 16:34:10 +0100 (Mo, 05 Jan 2015) $                   *
+ *   $Revision$                                                         *
+ *   $Date$                   *
  *                                                                           *
 \*===========================================================================*/
 
@@ -202,10 +209,37 @@ public:
 
 public:
 
+  /**
+   * \brief Add a new vertex.
+   *
+   * If you are rebuilding a mesh that you previously erased using clean() or
+   * clean_keep_reservation() you probably want to use new_vertex_dirty()
+   * instead.
+   *
+   * \sa new_vertex_dirty()
+   */
   inline VertexHandle new_vertex()
   {
     vertices_.push_back(Vertex());
     vprops_resize(n_vertices());//TODO:should it be push_back()?
+
+    return handle(vertices_.back());
+  }
+
+  /**
+   * Same as new_vertex() but uses PropertyContainer::resize_if_smaller() to
+   * resize the vertex property container.
+   *
+   * If you are rebuilding a mesh that you erased with clean() or
+   * clean_keep_reservation() using this method instead of new_vertex() saves
+   * reallocation and reinitialization of property memory.
+   *
+   * \sa new_vertex()
+   */
+  inline VertexHandle new_vertex_dirty()
+  {
+    vertices_.push_back(Vertex());
+    vprops_resize_if_smaller(n_vertices());//TODO:should it be push_back()?
 
     return handle(vertices_.back());
   }
@@ -287,17 +321,28 @@ public:
                           std_API_Container_FHandlePointer& fh_to_update,
                           bool _v=true, bool _e=true, bool _f=true);
 
-  /** \brief Clear the whole mesh
-   *
-   *  This will remove all properties and elements from the mesh
-   */
+  /// \brief Does the same as clean() and in addition erases all properties.
   void clear();
 
-  /** \brief Reset the whole mesh
+  /** \brief Remove all vertices, edges and faces and deallocates their memory.
    *
-   *  This will remove all elements from the mesh but keeps the properties
+   * In contrast to clear() this method does neither erases the properties
+   * nor clears the property vectors. Depending on how you add any new entities
+   * to the mesh after calling this method, your properties will be initialized
+   * with old values.
+   *
+   * \sa clean_keep_reservation()
    */
   void clean();
+
+  /** \brief Remove all vertices, edges and faces but keep memory allocated.
+   *
+   * This method behaves like clean() (also regarding the properties) but
+   * leaves the memory used for vertex, edge and face storage allocated. This
+   * leads to no reduction in memory consumption but allows for faster
+   * performance when rebuilding the mesh.
+   */
+  void clean_keep_reservation();
 
   // --- number of items ---
   size_t n_vertices()  const { return vertices_.size(); }
@@ -418,7 +463,7 @@ public:
 
 
   HalfedgeHandle opposite_halfedge_handle(HalfedgeHandle _heh) const
-  { return HalfedgeHandle((_heh.idx() & 1) ? _heh.idx()-1 : _heh.idx()+1); }
+  { return HalfedgeHandle(_heh.idx() ^ 1); }
 
 
   HalfedgeHandle ccw_rotated_halfedge_handle(HalfedgeHandle _heh) const
@@ -429,14 +474,22 @@ public:
   { return next_halfedge_handle(opposite_halfedge_handle(_heh)); }
 
   // --- edge connectivity ---
-  HalfedgeHandle halfedge_handle(EdgeHandle _eh, unsigned int _i) const
+  static HalfedgeHandle s_halfedge_handle(EdgeHandle _eh, unsigned int _i)
   {
     assert(_i<=1);
     return HalfedgeHandle((_eh.idx() << 1) + _i);
   }
 
-  EdgeHandle edge_handle(HalfedgeHandle _heh) const
+  static EdgeHandle s_edge_handle(HalfedgeHandle _heh)
   { return EdgeHandle(_heh.idx() >> 1); }
+
+  HalfedgeHandle halfedge_handle(EdgeHandle _eh, unsigned int _i) const
+  {
+      return s_halfedge_handle(_eh, _i);
+  }
+
+  EdgeHandle edge_handle(HalfedgeHandle _heh) const
+  { return s_edge_handle(_heh); }
 
   // --- face connectivity ---
   HalfedgeHandle halfedge_handle(FaceHandle _fh) const
@@ -455,6 +508,16 @@ public:
 
   StatusInfo&                               status(VertexHandle _vh)
   { return property(vertex_status_, _vh); }
+
+  /**
+   * Reinitializes the status of all vertices using the StatusInfo default
+   * constructor, i.e. all flags will be set to false.
+   */
+  void reset_status() {
+      PropertyT<StatusInfo> &status_prop = property(vertex_status_);
+      PropertyT<StatusInfo>::vector_type &sprop_v = status_prop.data_vector();
+      std::fill(sprop_v.begin(), sprop_v.begin() + n_vertices(), StatusInfo());
+  }
 
   //----------------------------------------------------------- halfedge status
   const StatusInfo&                         status(HalfedgeHandle _hh) const
@@ -566,54 +629,62 @@ public:
 
   /// --- StatusSet API ---
 
-  template <class Handle>
+  /*! 
+  Implements a set of connectivity entities (vertex, edge, face, halfedge) 
+  using the available bits in the corresponding mesh status field. 
+
+  Status-based sets are much faster than std::set<> and equivalent 
+  in performance to std::vector<bool>, but much more convenient. 
+  */
+  template <class HandleT>
   class StatusSetT
   {
+  public: 
+    typedef HandleT Handle;
+
   protected:
-    ArrayKernel&                            kernel_;
+    ArrayKernel& kernel_;
 
   public:
-    const unsigned int                      bit_mask_;
+    const unsigned int bit_mask_;
 
   public:
-    StatusSetT(ArrayKernel& _kernel, unsigned int _bit_mask)
+    StatusSetT(ArrayKernel& _kernel, const unsigned int _bit_mask)
     : kernel_(_kernel), bit_mask_(_bit_mask)
     {}
 
     ~StatusSetT()
     {}
 
-    inline bool                             is_in(Handle _hnd) const
+    inline bool is_in(Handle _hnd) const
     { return kernel_.status(_hnd).is_bit_set(bit_mask_); }
 
-    inline void                             insert(Handle _hnd)
+    inline void insert(Handle _hnd)
     { kernel_.status(_hnd).set_bit(bit_mask_); }
 
-    inline void                             erase(Handle _hnd)
+    inline void erase(Handle _hnd)
     { kernel_.status(_hnd).unset_bit(bit_mask_); }
 
-    /// Note: 0(n) complexity
-    unsigned int                            size() const
+    //! Note: 0(n) complexity
+    size_t size() const
     {
-      unsigned int n_elements = kernel_.status_pph(Handle()).is_valid() ?
-                                kernel_.property(kernel_.status_pph(Handle())).n_elements() : 0;
-      unsigned int sz = 0;
-      for (unsigned int i = 0; i < n_elements; ++i)
-      {
-        sz += (unsigned int)is_in(Handle(i));
-      }
+      const int n = kernel_.status_pph(Handle()).is_valid() ?
+       (int)kernel_.property(kernel_.status_pph(Handle())).n_elements() : 0;
+ 
+      size_t sz = 0;
+      for (int i = 0; i < n; ++i)
+        sz += (size_t)is_in(Handle(i));
       return sz;
     }
 
-    /// Note: O(n) complexity
-    void                                    clear()
+    //! Note: O(n) complexity
+    void clear()
     {
-      unsigned int n_elements = kernel_.status_pph(Handle()).is_valid() ?
-                                kernel_.property(kernel_.status_pph(Handle())).n_elements() : 0;
-      for (unsigned int i = 0; i < n_elements; ++i)
-      {
+      const int n = kernel_.status_pph(Handle()).is_valid() ?
+       (int)kernel_.property(kernel_.status_pph(Handle())).n_elements() : 0;
+
+      for (int i = 0; i < n; ++i)
         erase(Handle(i));
-      }
     }
   };
 
@@ -622,13 +693,14 @@ public:
   friend class StatusSetT<FaceHandle>;
   friend class StatusSetT<HalfedgeHandle>;
 
-  /// --- AutoStatusSet API ---
-
-  template <class Handle>
-  class AutoStatusSetT : public StatusSetT<Handle>
+  //! AutoStatusSetT: A status set that automatically picks a status bit 
+  template <class HandleT>
+  class AutoStatusSetT : public StatusSetT<HandleT>
   {
   private:
-    typedef StatusSetT<Handle>              Base;
+    typedef HandleT Handle;
+    typedef StatusSetT<Handle> Base;
+
   public:
     AutoStatusSetT(ArrayKernel& _kernel)
     : StatusSetT<Handle>(_kernel, _kernel.pop_bit_mask(Handle()))
@@ -651,13 +723,13 @@ public:
   typedef AutoStatusSetT<FaceHandle>        FaceStatusSet;
   typedef AutoStatusSetT<HalfedgeHandle>    HalfedgeStatusSet;
 
-  /// --- ExtStatusSet API --- (hybrid between a set and an array)
-
-  template <class Handle>
-  class ExtStatusSetT : public AutoStatusSetT<Handle>
+  //! ExtStatusSet: A status set augmented with an array
+  template <class HandleT>
+  class ExtStatusSetT : public AutoStatusSetT<HandleT>
   {
   public:
-    typedef AutoStatusSetT<Handle>          Base;
+    typedef HandleT Handle;
+    typedef AutoStatusSetT<Handle> Base;
 
   protected:
     typedef std::vector<Handle>             HandleContainer;
@@ -676,9 +748,8 @@ public:
     ~ExtStatusSetT()
     { clear(); }
 
-    //set API
     // Complexity: O(1)
-    inline void                             insert(Handle _hnd)
+    inline void insert(Handle _hnd)
     {
       if (!is_in(_hnd))
       {
@@ -687,8 +758,8 @@ public:
       }
     }
 
-    // Complexity: O(k), (k - number of the elements in the set)
-    inline void                             erase(Handle _hnd)
+    //! Complexity: O(k), (k - number of the elements in the set)
+    inline void erase(Handle _hnd)
     {
       if (is_in(_hnd))
       {
@@ -697,16 +768,16 @@ public:
       }
     }
 
-    // Complexity: O(1)
-    inline void                             erase(iterator _it)
+    //! Complexity: O(1)
+    inline void erase(iterator _it)
     {
       assert(_it != end() && is_in(*_it));
-      clear(*_it);
+      Base::erase(*_it);
       *_it = handles_.back();
       _it.pop_back();
     }
 
-    inline void                             clear()
+    inline void clear()
     {
       for (iterator it = begin(); it != end(); ++it)
       {
@@ -717,30 +788,30 @@ public:
     }
 
     /// Complexity: 0(1)
-    inline unsigned int                     size() const
+    inline unsigned int size() const
     { return handles_.size(); }
-    inline bool                             empty() const
+    inline bool empty() const
     { return handles_.empty(); }
 
     //Vector API
-    inline iterator                         begin()
+    inline iterator begin()
     { return handles_.begin(); }
-    inline const_iterator                   begin() const
+    inline const_iterator begin() const
     { return handles_.begin(); }
 
-    inline iterator                         end()
+    inline iterator end()
     { return handles_.end(); }
-    inline const_iterator                   end() const
+    inline const_iterator end() const
     { return handles_.end(); }
 
-    inline Handle&                          front()
+    inline Handle& front()
     { return handles_.front(); }
-    inline const Handle&                    front() const
+    inline const Handle& front() const
     { return handles_.front(); }
 
-    inline Handle&                          back()
+    inline Handle& back()
     { return handles_.back(); }
-    inline const Handle&                    back() const
+    inline const Handle& back() const
     { return handles_.back(); }
   };
 

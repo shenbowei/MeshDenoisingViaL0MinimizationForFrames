@@ -11,6 +11,9 @@ win32{
     #LIBS += "$${OUT_PWD}/../OpenMesh/libOpenMesh.a"
     LIBS += "$${OUT_PWD}/../OpenMesh/OpenMesh.lib"
     LIBS += -L$$PWD/ANN/lib/ -lANN
+    #LIBS += opengl32.lib
+    LIBS += -lglut32
+    #LIBS += -LC:\glut
 }
 
 unix{

@@ -1,41 +1,48 @@
-/*===========================================================================*\
+/* ========================================================================= *
  *                                                                           *
  *                               OpenMesh                                    *
- *      Copyright (C) 2001-2015 by Computer Graphics Group, RWTH Aachen      *
- *                           www.openmesh.org                                *
+ *           Copyright (c) 2001-2015, RWTH-Aachen University                 *
+ *           Department of Computer Graphics and Multimedia                  *
+ *                          All rights reserved.                             *
+ *                            www.openmesh.org                               *
  *                                                                           *
- *---------------------------------------------------------------------------* 
- *  This file is part of OpenMesh.                                           *
+ *---------------------------------------------------------------------------*
+ * This file is part of OpenMesh.                                            *
+ *---------------------------------------------------------------------------*
  *                                                                           *
- *  OpenMesh is free software: you can redistribute it and/or modify         * 
- *  it under the terms of the GNU Lesser General Public License as           *
- *  published by the Free Software Foundation, either version 3 of           *
- *  the License, or (at your option) any later version with the              *
- *  following exceptions:                                                    *
+ * Redistribution and use in source and binary forms, with or without        *
+ * modification, are permitted provided that the following conditions        *
+ * are met:                                                                  *
  *                                                                           *
- *  If other files instantiate templates or use macros                       *
- *  or inline functions from this file, or you compile this file and         *
- *  link it with other files to produce an executable, this file does        *
- *  not by itself cause the resulting executable to be covered by the        *
- *  GNU Lesser General Public License. This exception does not however       *
- *  invalidate any other reasons why the executable file might be            *
- *  covered by the GNU Lesser General Public License.                        *
+ * 1. Redistributions of source code must retain the above copyright notice, *
+ *    this list of conditions and the following disclaimer.                  *
  *                                                                           *
- *  OpenMesh is distributed in the hope that it will be useful,              *
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of           *
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            *
- *  GNU Lesser General Public License for more details.                      *
+ * 2. Redistributions in binary form must reproduce the above copyright      *
+ *    notice, this list of conditions and the following disclaimer in the    *
+ *    documentation and/or other materials provided with the distribution.   *
  *                                                                           *
- *  You should have received a copy of the GNU LesserGeneral Public          *
- *  License along with OpenMesh.  If not,                                    *
- *  see <http://www.gnu.org/licenses/>.                                      *
+ * 3. Neither the name of the copyright holder nor the names of its          *
+ *    contributors may be used to endorse or promote products derived from   *
+ *    this software without specific prior written permission.               *
  *                                                                           *
-\*===========================================================================*/ 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS       *
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED *
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A           *
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER *
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,  *
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,       *
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR        *
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF    *
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING      *
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS        *
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.              *
+ *                                                                           *
+ * ========================================================================= */
 
 /*===========================================================================*\
  *                                                                           *             
- *   $Revision: 1188 $                                                         *
- *   $Date: 2015-01-05 16:34:10 +0100 (Mo, 05 Jan 2015) $                   *
+ *   $Revision$                                                         *
+ *   $Date$                   *
  *                                                                           *
 \*===========================================================================*/
 
@@ -193,17 +200,83 @@ public:
 
   //---------------------------------------------------- synchronize properties
 
+/*
+ * In C++11 an beyond we can introduce more efficient and more legible
+ * implementations of the following methods.
+ */
+#if ((defined(_MSC_VER) && (_MSC_VER >= 1900)) || __cplusplus > 199711L || defined(__GXX_EXPERIMENTAL_CXX0X__)) && !defined(OPENMESH_VECTOR_LEGACY)
+  /**
+   * Reserves space for \p _n elements in all property vectors.
+   */
+  void reserve(size_t _n) const {
+    std::for_each(properties_.begin(), properties_.end(),
+            [_n](BaseProperty* p) { if (p) p->reserve(_n); });
+  }
+
+  /**
+   * Resizes all property vectors to the specified size.
+   */
+  void resize(size_t _n) const {
+    std::for_each(properties_.begin(), properties_.end(),
+            [_n](BaseProperty* p) { if (p) p->resize(_n); });
+  }
+
+  /**
+   * Same as resize() but ignores property vectors that have a size larger
+   * than \p _n.
+   *
+   * Use this method instead of resize() if you plan to frequently reduce
+   * and enlarge the property container and you don't want to waste time
+   * reallocating the property vectors every time.
+   */
+  void resize_if_smaller(size_t _n) const {
+    std::for_each(properties_.begin(), properties_.end(),
+            [_n](BaseProperty* p) { if (p && p->n_elements() < _n) p->resize(_n); });
+  }
+
+  /**
+   * Swaps the items with index \p _i0 and index \p _i1 in all property
+   * vectors.
+   */
+  void swap(size_t _i0, size_t _i1) const {
+    std::for_each(properties_.begin(), properties_.end(),
+            [_i0, _i1](BaseProperty* p) { if (p) p->swap(_i0, _i1); });
+  }
+#else
+  /**
+   * Reserves space for \p _n elements in all property vectors.
+   */
   void reserve(size_t _n) const {
     std::for_each(properties_.begin(), properties_.end(), Reserve(_n));
   }
 
+  /**
+   * Resizes all property vectors to the specified size.
+   */
   void resize(size_t _n) const {
     std::for_each(properties_.begin(), properties_.end(), Resize(_n));
   }
 
+  /**
+   * Same as \sa resize() but ignores property vectors that have a size
+   * larger than \p _n.
+   *
+   * Use this method instead of \sa resize() if you plan to frequently reduce
+   * and enlarge the property container and you don't want to waste time
+   * reallocating the property vectors every time.
+   */
+  void resize_if_smaller(size_t _n) const {
+    std::for_each(properties_.begin(), properties_.end(), ResizeIfSmaller(_n));
+  }
+
+  /**
+   * Swaps the items with index \p _i0 and index \p _i1 in all property
+   * vectors.
+   */
   void swap(size_t _i0, size_t _i1) const {
     std::for_each(properties_.begin(), properties_.end(), Swap(_i0, _i1));
   }
+#endif
 
 
 
@@ -263,6 +336,13 @@ private:
   {
     Resize(size_t _n) : n_(_n) {}
     void operator()(BaseProperty* _p) const { if (_p) _p->resize(n_); }
+    size_t n_;
+  };
+
+  struct ResizeIfSmaller
+  {
+    ResizeIfSmaller(size_t _n) : n_(_n) {}
+    void operator()(BaseProperty* _p) const { if (_p && _p->n_elements() < n_) _p->resize(n_); }
     size_t n_;
   };
 

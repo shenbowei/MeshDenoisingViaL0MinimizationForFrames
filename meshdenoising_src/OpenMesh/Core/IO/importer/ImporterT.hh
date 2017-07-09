@@ -1,41 +1,48 @@
-/*===========================================================================*\
+/* ========================================================================= *
  *                                                                           *
  *                               OpenMesh                                    *
- *      Copyright (C) 2001-2015 by Computer Graphics Group, RWTH Aachen      *
- *                           www.openmesh.org                                *
+ *           Copyright (c) 2001-2015, RWTH-Aachen University                 *
+ *           Department of Computer Graphics and Multimedia                  *
+ *                          All rights reserved.                             *
+ *                            www.openmesh.org                               *
  *                                                                           *
  *---------------------------------------------------------------------------*
- *  This file is part of OpenMesh.                                           *
+ * This file is part of OpenMesh.                                            *
+ *---------------------------------------------------------------------------*
  *                                                                           *
- *  OpenMesh is free software: you can redistribute it and/or modify         *
- *  it under the terms of the GNU Lesser General Public License as           *
- *  published by the Free Software Foundation, either version 3 of           *
- *  the License, or (at your option) any later version with the              *
- *  following exceptions:                                                    *
+ * Redistribution and use in source and binary forms, with or without        *
+ * modification, are permitted provided that the following conditions        *
+ * are met:                                                                  *
  *                                                                           *
- *  If other files instantiate templates or use macros                       *
- *  or inline functions from this file, or you compile this file and         *
- *  link it with other files to produce an executable, this file does        *
- *  not by itself cause the resulting executable to be covered by the        *
- *  GNU Lesser General Public License. This exception does not however       *
- *  invalidate any other reasons why the executable file might be            *
- *  covered by the GNU Lesser General Public License.                        *
+ * 1. Redistributions of source code must retain the above copyright notice, *
+ *    this list of conditions and the following disclaimer.                  *
  *                                                                           *
- *  OpenMesh is distributed in the hope that it will be useful,              *
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of           *
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            *
- *  GNU Lesser General Public License for more details.                      *
+ * 2. Redistributions in binary form must reproduce the above copyright      *
+ *    notice, this list of conditions and the following disclaimer in the    *
+ *    documentation and/or other materials provided with the distribution.   *
  *                                                                           *
- *  You should have received a copy of the GNU LesserGeneral Public          *
- *  License along with OpenMesh.  If not,                                    *
- *  see <http://www.gnu.org/licenses/>.                                      *
+ * 3. Neither the name of the copyright holder nor the names of its          *
+ *    contributors may be used to endorse or promote products derived from   *
+ *    this software without specific prior written permission.               *
  *                                                                           *
-\*===========================================================================*/
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS       *
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED *
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A           *
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER *
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,  *
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,       *
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR        *
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF    *
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING      *
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS        *
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.              *
+ *                                                                           *
+ * ========================================================================= */
 
 /*===========================================================================*\
  *                                                                           *
- *   $Revision: 1188 $                                                         *
- *   $Date: 2015-01-05 16:34:10 +0100 (Mo, 05 Jan 2015) $                   *
+ *   $Revision$                                                         *
+ *   $Date$                   *
  *                                                                           *
 \*===========================================================================*/
 
@@ -83,6 +90,7 @@ public:
   typedef typename Mesh::Normal      Normal;
   typedef typename Mesh::Color       Color;
   typedef typename Mesh::TexCoord2D  TexCoord2D;
+  typedef typename Mesh::TexCoord3D  TexCoord3D;
   typedef std::vector<VertexHandle>  VHandles;
 
 
@@ -123,17 +131,45 @@ public:
           if (*it == *it2)
           {
             omerr() << "ImporterT: Face has equal vertices\n";
-            failed_faces_.push_back(_indices);
             return fh;
           }
 
 
       // try to add face
       fh = mesh_.add_face(_indices);
+      // separate non-manifold faces and mark them
       if (!fh.is_valid())
       {
-        failed_faces_.push_back(_indices);
-        return fh;
+        VHandles vhandles(_indices.size());
+
+        // double vertices
+        for (unsigned int j=0; j<_indices.size(); ++j)
+        {
+            // DO STORE p, reference may not work since vertex array
+            // may be relocated after adding a new vertex !
+            Point p = mesh_.point(_indices[j]);
+            vhandles[j] = mesh_.add_vertex(p);
+
+            // Mark vertices of failed face as non-manifold
+            if (mesh_.has_vertex_status()) {
+                mesh_.status(vhandles[j]).set_fixed_nonmanifold(true);
+            }
+        }
+
+        // add face
+        FaceHandle fh = mesh_.add_face(vhandles);
+
+        // Mark failed face as non-manifold
+        if (mesh_.has_face_status())
+          mesh_.status(fh).set_fixed_nonmanifold(true);
+
+        // Mark edges of failed face as non-two-manifold
+        if (mesh_.has_edge_status()) {
+          typename Mesh::FaceEdgeIter fe_it = mesh_.fe_iter(fh);
+          for(; fe_it.is_valid(); ++fe_it) {
+              mesh_.status(*fe_it).set_fixed_nonmanifold(true);
+          }
+        }
       }
 
       //write the half edge normals
@@ -210,6 +246,19 @@ public:
       mesh_.set_texcoord2D(_heh, vector_cast<TexCoord2D>(_texcoord));
   }
 
+  virtual void set_texcoord(VertexHandle _vh, const Vec3f& _texcoord)
+  {
+    if (mesh_.has_vertex_texcoords3D())
+      mesh_.set_texcoord3D(_vh, vector_cast<TexCoord3D>(_texcoord));
+  }
+
+  virtual void set_texcoord(HalfedgeHandle _heh, const Vec3f& _texcoord)
+  {
+    if (mesh_.has_halfedge_texcoords3D())
+      mesh_.set_texcoord3D(_heh, vector_cast<TexCoord3D>(_texcoord));
+  }
+
+
   // edge attributes
 
   virtual void set_color(EdgeHandle _eh, const Vec4uc& _color)
@@ -285,6 +334,23 @@ public:
     }
   }
 
+  virtual void add_face_texcoords( FaceHandle _fh, VertexHandle _vh, const std::vector<Vec3f>& _face_texcoords)
+  {
+    // get first halfedge handle
+    HalfedgeHandle cur_heh   = mesh_.halfedge_handle(_fh);
+    HalfedgeHandle end_heh   = mesh_.prev_halfedge_handle(cur_heh);
+
+    // find start heh
+    while( mesh_.to_vertex_handle(cur_heh) != _vh && cur_heh != end_heh )
+      cur_heh = mesh_.next_halfedge_handle( cur_heh);
+
+    for(unsigned int i=0; i<_face_texcoords.size(); ++i)
+    {
+      set_texcoord( cur_heh, _face_texcoords[i]);
+      cur_heh = mesh_.next_halfedge_handle( cur_heh);
+    }
+  }
+
   virtual void set_face_texindex( FaceHandle _fh, int _texId ) {
     if ( mesh_.has_face_texture_index() ) {
       mesh_.set_texture_index(_fh , _texId);
@@ -320,60 +386,15 @@ public:
   size_t n_edges()     const { return mesh_.n_edges(); }
 
 
-  void prepare() { failed_faces_.clear(); }
+  void prepare() { }
 
 
-  void finish()
-  {
-    if (!failed_faces_.empty())
-    {
-      omerr() << failed_faces_.size()
-	    << " faces failed, adding them as isolated faces\n";
-
-      for (unsigned int i=0; i<failed_faces_.size(); ++i)
-      {
-        VHandles&  vhandles = failed_faces_[i];
-
-        // double vertices
-        for (unsigned int j=0; j<vhandles.size(); ++j)
-        {
-          Point p = mesh_.point(vhandles[j]);
-          vhandles[j] = mesh_.add_vertex(p);
-          // DO STORE p, reference may not work since vertex array
-          // may be relocated after adding a new vertex !
-
-          // Mark vertices of failed face as non-manifold
-          if (mesh_.has_vertex_status()) {
-              mesh_.status(vhandles[j]).set_fixed_nonmanifold(true);
-          }
-        }
-
-        // add face
-        FaceHandle fh = mesh_.add_face(vhandles);
-
-        // Mark failed face as non-manifold
-        if (mesh_.has_face_status())
-            mesh_.status(fh).set_fixed_nonmanifold(true);
-
-        // Mark edges of failed face as non-two-manifold
-        if (mesh_.has_edge_status()) {
-            typename Mesh::FaceEdgeIter fe_it = mesh_.fe_iter(fh);
-            for(; fe_it.is_valid(); ++fe_it) {
-                mesh_.status(*fe_it).set_fixed_nonmanifold(true);
-            }
-        }
-      }
-
-      failed_faces_.clear();
-    }
-  }
-
+  void finish()  { }
 
 
 private:
 
   Mesh& mesh_;
-  std::vector<VHandles>  failed_faces_;
   // stores normals for halfedges of the next face
   std::map<VertexHandle,Normal> halfedgeNormals_;
 };

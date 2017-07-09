@@ -1,41 +1,48 @@
-/*===========================================================================*\
+/* ========================================================================= *
  *                                                                           *
  *                               OpenMesh                                    *
- *      Copyright (C) 2001-2015 by Computer Graphics Group, RWTH Aachen      *
- *                           www.openmesh.org                                *
+ *           Copyright (c) 2001-2015, RWTH-Aachen University                 *
+ *           Department of Computer Graphics and Multimedia                  *
+ *                          All rights reserved.                             *
+ *                            www.openmesh.org                               *
  *                                                                           *
- *---------------------------------------------------------------------------* 
- *  This file is part of OpenMesh.                                           *
+ *---------------------------------------------------------------------------*
+ * This file is part of OpenMesh.                                            *
+ *---------------------------------------------------------------------------*
  *                                                                           *
- *  OpenMesh is free software: you can redistribute it and/or modify         * 
- *  it under the terms of the GNU Lesser General Public License as           *
- *  published by the Free Software Foundation, either version 3 of           *
- *  the License, or (at your option) any later version with the              *
- *  following exceptions:                                                    *
+ * Redistribution and use in source and binary forms, with or without        *
+ * modification, are permitted provided that the following conditions        *
+ * are met:                                                                  *
  *                                                                           *
- *  If other files instantiate templates or use macros                       *
- *  or inline functions from this file, or you compile this file and         *
- *  link it with other files to produce an executable, this file does        *
- *  not by itself cause the resulting executable to be covered by the        *
- *  GNU Lesser General Public License. This exception does not however       *
- *  invalidate any other reasons why the executable file might be            *
- *  covered by the GNU Lesser General Public License.                        *
+ * 1. Redistributions of source code must retain the above copyright notice, *
+ *    this list of conditions and the following disclaimer.                  *
  *                                                                           *
- *  OpenMesh is distributed in the hope that it will be useful,              *
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of           *
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            *
- *  GNU Lesser General Public License for more details.                      *
+ * 2. Redistributions in binary form must reproduce the above copyright      *
+ *    notice, this list of conditions and the following disclaimer in the    *
+ *    documentation and/or other materials provided with the distribution.   *
  *                                                                           *
- *  You should have received a copy of the GNU LesserGeneral Public          *
- *  License along with OpenMesh.  If not,                                    *
- *  see <http://www.gnu.org/licenses/>.                                      *
+ * 3. Neither the name of the copyright holder nor the names of its          *
+ *    contributors may be used to endorse or promote products derived from   *
+ *    this software without specific prior written permission.               *
  *                                                                           *
-\*===========================================================================*/ 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS       *
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED *
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A           *
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER *
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,  *
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,       *
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR        *
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF    *
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING      *
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS        *
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.              *
+ *                                                                           *
+ * ========================================================================= */
 
 /*===========================================================================*\
  *                                                                           *             
- *   $Revision: 1188 $                                                         *
- *   $Date: 2015-01-05 16:34:10 +0100 (Mo, 05 Jan 2015) $                   *
+ *   $Revision$                                                         *
+ *   $Date$                   *
  *                                                                           *
 \*===========================================================================*/
 
@@ -59,6 +66,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <iosfwd>
 // --------------------
 #include <OpenMesh/Core/Utils/PropertyContainer.hh>
 
@@ -71,8 +79,11 @@ namespace OpenMesh {
 
 //== CLASS DEFINITION =========================================================
 
-/// This class provides the basic property management like adding/removing
-/// properties and access to properties.
+/// This class provides low-level property management like adding/removing
+/// properties and access to properties. Under most circumstances, it is
+/// advisable to use the high-level property management provided by
+/// PropertyManager, instead.
+///
 /// All operations provided by %BaseKernel need at least a property handle
 /// (VPropHandleT, EPropHandleT, HPropHandleT, FPropHandleT, MPropHandleT).
 /// which keeps the data type of the property, too.
@@ -107,7 +118,12 @@ public: //-------------------------------------------------- add new properties
 
   //@{
 
-  /** Adds a property
+  /** You should not use this function directly. Instead, use the convenient
+   *  PropertyManager wrapper and/or one of its helper functions such as
+   *  makePropertyManagerFromNew, makePropertyManagerFromExisting, or
+   *  makePropertyManagerFromExistingOrNew.
+   *
+   *  Adds a property
    *
    *  Depending on the property handle type a vertex, (half-)edge, face or
    *  mesh property is added to the mesh. If the action fails the handle
@@ -169,7 +185,10 @@ public: //--------------------------------------------------- remove properties
   /// \name Removing a property from a mesh tiem
   //@{
 
-  /** Remove a property.
+  /** You should not use this function directly. Instead, use the convenient
+   *  PropertyManager wrapper to manage (and remove) properties.
+   *
+   *  Remove a property.
    *
    *  Removes the property represented by the handle from the apropriate
    *  mesh item.
@@ -223,7 +242,12 @@ public: //------------------------------------------------ get handle from name
   /// \name Get property handle by name
   //@{
 
-  /** Retrieves the handle to a named property by it's name.
+  /** You should not use this function directly. Instead, use the convenient
+   *  PropertyManager wrapper (e.g. PropertyManager::propertyExists) or one of
+   *  its higher level helper functions such as
+   *  makePropertyManagerFromExisting, or makePropertyManagerFromExistingOrNew.
+   *
+   *  Retrieves the handle to a named property by it's name.
    *
    *  \param _ph    A property handle. On success the handle is valid else
    *                invalid.
@@ -273,7 +297,12 @@ public: //--------------------------------------------------- access properties
   /// \name Access a property
   //@{
 
-  /** Access a property
+  /** In most cases you should use the convenient PropertyManager wrapper
+   *  and use of this function should not be necessary. Under some
+   *  circumstances, however (i.e. making a property persistent), it might be
+   *  necessary to use this function.
+   *
+   *  Access a property
    *
    *  This method returns a reference to property. The property handle
    *  must be valid! The result is unpredictable if the handle is invalid!
@@ -334,7 +363,10 @@ public: //-------------------------------------------- access property elements
   /// \name Access a property element using a handle to a mesh item
   //@{
 
-  /** Return value of property for an item
+  /** You should not use this function directly. Instead, use the convenient
+   *  PropertyManager wrapper.
+   *
+   *  Return value of property for an item
    */
 
   template <class T>
@@ -406,7 +438,11 @@ public: //-------------------------------------------- access property elements
 
 public: //------------------------------------------------ copy property
 
-  /** Copies a single property from one mesh element to another (of the same type)
+  /** You should not use this function directly. Instead, use the convenient
+   *  PropertyManager wrapper (e.g. PropertyManager::copy_to or
+   *  PropertyManager::copy).
+   *
+   * Copies a single property from one mesh element to another (of the same type)
    *
    * @param _ph       A vertex property handle
    * @param _vh_from  From vertex handle
@@ -418,7 +454,11 @@ public: //------------------------------------------------ copy property
       vprops_.property(_ph)[_vh_to.idx()] = vprops_.property(_ph)[_vh_from.idx()];
   }
 
-  /** Copies a single property from one mesh element to another (of the same type)
+  /** You should not use this function directly. Instead, use the convenient
+    * PropertyManager wrapper (e.g. PropertyManager::copy_to or
+    * PropertyManager::copy).
+    *
+    * Copies a single property from one mesh element to another (of the same type)
     *
     * @param _ph       A halfedge property handle
     * @param _hh_from  From halfedge handle
@@ -430,7 +470,11 @@ public: //------------------------------------------------ copy property
       hprops_.property(_ph)[_hh_to.idx()] = hprops_.property(_ph)[_hh_from.idx()];
   }
 
-  /** Copies a single property from one mesh element to another (of the same type)
+  /** You should not use this function directly. Instead, use the convenient
+    * PropertyManager wrapper (e.g. PropertyManager::copy_to or
+    * PropertyManager::copy).
+    *
+    * Copies a single property from one mesh element to another (of the same type)
     *
     * @param _ph       An edge property handle
     * @param _eh_from  From edge handle
@@ -442,7 +486,11 @@ public: //------------------------------------------------ copy property
       eprops_.property(_ph)[_eh_to.idx()] = eprops_.property(_ph)[_eh_from.idx()];
   }
 
-  /** Copies a single property from one mesh element to another (of the same type)
+  /** You should not use this function directly. Instead, use the convenient
+    * PropertyManager wrapper (e.g. PropertyManager::copy_to or
+    * PropertyManager::copy).
+    *
+    * Copies a single property from one mesh element to another (of the same type)
     *
     * @param _ph       A face property handle
     * @param _fh_from  From face handle
@@ -638,11 +686,26 @@ public: //----------------------------------------------------- element numbers
 
 protected: //------------------------------------------- synchronize properties
 
+  /// Reserves space for \p _n elements in all vertex property vectors.
   void vprops_reserve(size_t _n) const { vprops_.reserve(_n); }
+
+  /// Resizes all vertex property vectors to the specified size.
   void vprops_resize(size_t _n) const { vprops_.resize(_n); }
+
+  /**
+   * Same as vprops_resize() but ignores vertex property vectors that have
+   * a size larger than \p _n.
+   *
+   * Use this method instead of vprops_resize() if you plan to frequently reduce
+   * and enlarge the property container and you don't want to waste time
+   * reallocating the property vectors every time.
+   */
+  void vprops_resize_if_smaller(size_t _n) const { vprops_.resize_if_smaller(_n); }
+
   void vprops_clear() {
     vprops_.clear();
   }
+
   void vprops_swap(unsigned int _i0, unsigned int _i1) const {
     vprops_.swap(_i0, _i1);
   }
@@ -681,7 +744,9 @@ protected: //------------------------------------------- synchronize properties
 
 public:
 
-  void property_stats(std::ostream& _ostr = std::clog) const;
+  // uses std::clog as output stream
+  void property_stats() const;
+  void property_stats(std::ostream& _ostr) const;
 
   void vprop_stats( std::string& _string ) const;
   void hprop_stats( std::string& _string ) const;
@@ -689,11 +754,18 @@ public:
   void fprop_stats( std::string& _string ) const;
   void mprop_stats( std::string& _string ) const;
 
-  void vprop_stats(std::ostream& _ostr = std::clog) const;
-  void hprop_stats(std::ostream& _ostr = std::clog) const;
-  void eprop_stats(std::ostream& _ostr = std::clog) const;
-  void fprop_stats(std::ostream& _ostr = std::clog) const;
-  void mprop_stats(std::ostream& _ostr = std::clog) const;
+  // uses std::clog as output stream
+  void vprop_stats() const;
+  void hprop_stats() const;
+  void eprop_stats() const;
+  void fprop_stats() const;
+  void mprop_stats() const;
+
+  void vprop_stats(std::ostream& _ostr) const;
+  void hprop_stats(std::ostream& _ostr) const;
+  void eprop_stats(std::ostream& _ostr) const;
+  void fprop_stats(std::ostream& _ostr) const;
+  void mprop_stats(std::ostream& _ostr) const;
 
 public:
 
